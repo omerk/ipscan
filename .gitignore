@@ -1,3 +1,7 @@
+## Project specific stuff
+oui.txt
+
+## General Python fluff
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
