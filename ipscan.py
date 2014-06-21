@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, os, platform, subprocess, threading, time, urllib
 from tabulate import tabulate
 from datetime import datetime, timedelta
