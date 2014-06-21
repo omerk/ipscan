@@ -40,11 +40,14 @@ class ping_thread(threading.Thread):
 		elif platform.system() == "Linux":
 			subprocess.Popen(["ping", "-c", "2", str(self.ip)], stdout=_NULL, stderr=_NULL)
 
+def get_path():
+	path, _ = os.path.split(os.path.realpath(__file__))
+	return path
 
 def download_oui_txt():
 	print "Downloading oui.txt..."
 	#FIXME: Check for download errors
-	urllib.urlretrieve ("https://standards.ieee.org/develop/regauth/oui/oui.txt", "oui.txt")
+	urllib.urlretrieve ("https://standards.ieee.org/develop/regauth/oui/oui.txt", get_path() + "/oui.txt")
 
 def oui_lookup(mac):
 	return oui_db[mac.upper()]
@@ -56,8 +59,8 @@ if __name__ == '__main__':
 	netbios_threads = []
 	
 	# Ensure that oui.txt exists and it is not older than 2 weeks
-	if os.path.exists("oui.txt"):
-		filetime = datetime.fromtimestamp(os.path.getctime("oui.txt"))
+	if os.path.exists(get_path() + "/oui.txt"):
+		filetime = datetime.fromtimestamp(os.path.getctime(get_path() + "/oui.txt"))
 		if filetime < (datetime.now() - timedelta(weeks=2)):
 			download_oui_txt()
 	else:
@@ -65,7 +68,7 @@ if __name__ == '__main__':
 	
 	# Parse oui.txt and build oui_db
 	print "Parsing oui.txt..."
-	oui_txt = open('oui.txt', 'r')
+	oui_txt = open(get_path() + "/oui.txt", 'r')
 	for line in oui_txt:
 		if 'base 16' in line:
 			oui_db[line[:8].strip()] = line[23:].strip()
@@ -109,7 +112,7 @@ if __name__ == '__main__':
 		netbios_threads.append(netbios_thread(r[0]))
 	
 	# Query Netbios names
-	print "Resolving Netbios Names..."
+	print "Resolving Netbios names..."
 	[t.start() for t in netbios_threads]
 	# Wait for completion
 	[t.join() for t in netbios_threads]
