@@ -60,7 +60,7 @@ if __name__ == '__main__':
 	
 	# Ensure that oui.txt exists and it is not older than 2 weeks
 	if os.path.exists(get_path() + "/oui.txt"):
-		filetime = datetime.fromtimestamp(os.path.getctime(get_path() + "/oui.txt"))
+		filetime = datetime.fromtimestamp(os.path.getmtime(get_path() + "/oui.txt"))
 		if filetime < (datetime.now() - timedelta(weeks=2)):
 			download_oui_txt()
 	else:
