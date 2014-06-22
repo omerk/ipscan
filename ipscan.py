@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys, os, platform, subprocess, threading, time, urllib
-from tabulate import tabulate
 from datetime import datetime, timedelta
 
 ping_results = []
@@ -51,6 +50,52 @@ def download_oui_txt():
 
 def oui_lookup(mac):
 	return oui_db[mac.upper()]
+
+def tabulate(data, headers):
+	#FIXME: this is messy..
+
+	if len(headers) != len(data[0]):
+		print "header and data dimension mismatch"
+		return
+
+	# determine longest data fields
+	d_len = [None] * len(data[0])
+	for i in data:
+		if len(i[0]) > d_len[0]:
+			d_len[0] = len(i[0])
+		if len(i[1]) > d_len[1]:
+			d_len[1] = len(i[1])
+		if len(i[2]) > d_len[2]:
+			d_len[2]= len(i[2])
+		if len(i[3]) > d_len[3]:
+			d_len[3] = len(i[3])
+
+	# determine length of headers
+	h_len = [None] * len(headers)
+	for i in range(len(headers)):
+		h_len[i] = len(headers[i])
+
+	# find max length per column
+	col_len = [None] * len(d_len) #or len(h_len) as it is the same len as d_len
+	for i in range(len(d_len)):
+		if h_len[i] > d_len[i]:
+			col_len[i] = h_len[i]
+		else:
+			col_len[i] = d_len[i]
+
+	# print headers
+	print "| " + headers[0] + (" " * (col_len[0] - h_len[0])),
+	print "| " + headers[1] + (" " * (col_len[1] - h_len[1])),
+	print "| " + headers[2] + (" " * (col_len[2] - h_len[2])),
+	print "| " + headers[3] + (" " * (col_len[3] - h_len[3])) + " |"
+
+	# print separator
+	print "|" + ("-" * (col_len[0]+2)) + "+" + ("-" * (col_len[1]+2)) + "+" + ("-" * (col_len[2]+2)) + "+" + ("-" * (col_len[3]+2)) + "|" 
+
+	# print results
+	for i in data:
+		print "| {0:<{l0}} | {1:<{l1}} | {2:<{l2}} | {3:<{l3}} |".format(i[0], i[1], i[2], i[3], l0=col_len[0], l1=col_len[1], l2=col_len[2], l3=col_len[3])
+
 
 if __name__ == '__main__':
 	print "ipscan.py 0.9 <https://github.com/omerk/ipscan>\n"
@@ -126,5 +171,5 @@ if __name__ == '__main__':
 
 	# Print results
 	print "\nTotal hosts found: %d\n" % len(ping_results)
-	print tabulate(ping_results, headers=["IP", "Netbios Name", "MAC", "Vendor"], tablefmt="orgtbl")
+	print tabulate(ping_results, ["IP", "Netbios Name", "MAC", "Vendor"])
 
