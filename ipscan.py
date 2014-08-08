@@ -17,6 +17,7 @@ class netbios_thread(threading.Thread):
 		if platform.system() == "Windows":
 			nbtstat_proc = subprocess.Popen(['nbtstat', '-A', str(self.ip)], stdout=subprocess.PIPE)
 		elif platform.system() == "Linux":
+                        #FIXME: Check if this is installed
 			nbtstat_proc = subprocess.Popen(['nmblookup', '-A', str(self.ip)], stdout=subprocess.PIPE)
 
 		out, err = nbtstat_proc.communicate()
@@ -39,6 +40,28 @@ class ping_thread(threading.Thread):
 		elif platform.system() == "Linux":
 			subprocess.Popen(["ping", "-c", "2", str(self.ip)], stdout=_NULL, stderr=_NULL)
 
+def get_ip(interface):
+    ifconfig = subprocess.Popen(['ifconfig', str(interface)], stdout=subprocess.PIPE)
+    grep = subprocess.Popen(['grep', 'inet addr'], stdin=ifconfig.stdout, stdout=subprocess.PIPE)
+    awk = subprocess.Popen(['awk', "{gsub(\"addr:\", \"\"); print $2}"], stdin=grep.stdout, stdout=subprocess.PIPE)
+    
+    out, err = awk.communicate()
+
+    #FIXME: add error checking
+    return out
+
+def sort_by_ip(results):
+    # Borrowed from http://www.secnetix.de/olli/Python/tricks.hawk#sortips
+    for i in range(len(results)):
+        results[i][0] = "%3s.%3s.%3s.%3s" % tuple(results[i][0].split("."))
+
+    results.sort()
+
+    for i in range(len(results)):
+        results[i][0] = results[i][0].replace(" ", "")
+
+    return results    
+
 def get_path():
 	path, _ = os.path.split(os.path.realpath(__file__))
 	return path
@@ -49,7 +72,7 @@ def download_oui_txt():
 	urllib.urlretrieve ("https://standards.ieee.org/develop/regauth/oui/oui.txt", get_path() + "/oui.txt")
 
 def oui_lookup(mac):
-	return oui_db[mac.upper()]
+	return oui_db.get(mac.upper(), "???")
 
 def tabulate(data, headers):
 	#FIXME: this is messy..
@@ -94,11 +117,19 @@ def tabulate(data, headers):
 
 	# print results
 	for i in data:
-		print "| {0:<{l0}} | {1:<{l1}} | {2:<{l2}} | {3:<{l3}} |".format(i[0], i[1], i[2], i[3], l0=col_len[0], l1=col_len[1], l2=col_len[2], l3=col_len[3])
+            if i != None:
+                print "| {0:<{l0}} | {1:<{l1}} | {2:<{l2}} | {3:<{l3}} |".format(i[0], i[1], i[2], i[3], l0=col_len[0], l1=col_len[1], l2=col_len[2], l3=col_len[3])
 
 
 if __name__ == '__main__':
 	print "ipscan.py 0.9 <https://github.com/omerk/ipscan>\n"
+
+        if len(sys.argv) > 2:
+            interface = sys.argv[1]
+        else:
+            interface = "wlan0"
+        
+        #FIXME: Check for the IP address here and halt if necessary
 
 	ping_threads = []
 	netbios_threads = []
@@ -118,11 +149,14 @@ if __name__ == '__main__':
 		if 'base 16' in line:
 			oui_db[line[:8].strip()] = line[23:].strip()
 
+        # What is the IP base?
+        ip = get_ip(interface).split('.')
+        ip_base = ip[0] + '.' + ip[1] + '.' +ip[2] + '.'
+
 	# Start pinging hosts
 	print "Pinging hosts..."
-	# FIXME: Get IP range from argv
-	for x in range(254):
-		ping_threads.append(ping_thread("192.168.0." + str(x)))
+        for x in range(254):
+		ping_threads.append(ping_thread(ip_base + str(x)))
 
 	[t.start() for t in ping_threads]
 	# Wait for completion
@@ -133,6 +167,7 @@ if __name__ == '__main__':
 	time.sleep(5)
 
 	# Go through the ARP cache
+        #FIXME: grep for the network interface chosen (do not pick all)
 	if platform.system() == "Windows":
 		arp_proc = subprocess.Popen(['arp', '-a'], stdout=subprocess.PIPE)
 		out, err = arp_proc.communicate()
@@ -170,6 +205,8 @@ if __name__ == '__main__':
 				p[1] = n[1]
 
 	# Print results
+        results = sort_by_ip(ping_results)
+	print tabulate(results, ["IP", "Netbios Name", "MAC", "Vendor"])
+
 	print "\nTotal hosts found: %d\n" % len(ping_results)
-	print tabulate(ping_results, ["IP", "Netbios Name", "MAC", "Vendor"])
 
